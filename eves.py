@@ -6,6 +6,8 @@ import time
 
 ########## CLASSES
 
+###
+
 class Vec2:
     X = None
     Y = None
@@ -18,13 +20,28 @@ class Vec2:
         """ der: scalar """
         return Vec2(s.X * der, s.Y * der)
 
+    def __div__(s, der):
+        """ der: scalar """
+        return Vec2(s.X / der, s.Y / der)
+
     def __add__(s, der):
         return Vec2(s.X + der.X, s.Y + der.Y)
+
+    def __sub__(s, der):
+        return Vec2(s.X - der.X, s.Y - der.Y)
 
     def __iadd__(s, der):
         s.X += der.X
         s.Y += der.Y
         return s
+
+def mean(vec_lst):
+    sum_vec = Vec2(0,0)
+    for v in vec_lst:
+        sum_vec += v
+    return sum_vec / len(vec_lst)
+
+###
 
 class Eve:
     Pos = None
@@ -43,6 +60,8 @@ class Eve:
     def selfPaint(s, canvas):
         sdl2.ext.line(canvas, sdl2.ext.Color(0,0,255), (s.Pos.X, s.Pos.Y, s.Pos.X + s.Vel.X, s.Pos.Y + s.Vel.Y))
 
+###
+
 class PhysicScene:
     Height = None
     Width = None
@@ -60,6 +79,8 @@ class PhysicScene:
             eve.Pos.X += s.Width
         if eve.Pos.Y < 0:
             eve.Pos.Y += s.Height
+
+###
 
 class EvesEngine:
     Eves = None
@@ -81,6 +102,8 @@ class EvesEngine:
     def processEvesInteraction(s, dt):
         # TODO something
         return
+
+###
 
 class DrawEngine:
     Window = None 
