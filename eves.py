@@ -3,6 +3,7 @@ import random
 import sdl2
 import sdl2.ext
 import time
+import copy
 
 ########## CLASSES
 
@@ -20,7 +21,7 @@ class Vec2:
         """ der: scalar """
         return Vec2(s.X * der, s.Y * der)
 
-    def __div__(s, der):
+    def __truediv__(s, der):
         """ der: scalar """
         return Vec2(s.X / der, s.Y / der)
 
@@ -35,11 +36,26 @@ class Vec2:
         s.Y += der.Y
         return s
 
+    def truncate(s, der):
+        if s.X*s.X > der.X*der.X:
+            if s.X < 0:
+                s.X = -der.X
+            else:
+                s.X = der.X
+        if s.Y*s.Y > der.Y*der.Y:
+            if s.Y < 0:
+                s.Y = -der.Y
+            else:
+                s.Y = der.Y
+
 def mean(vec_lst):
     sum_vec = Vec2(0,0)
     for v in vec_lst:
         sum_vec += v
     return sum_vec / len(vec_lst)
+
+def normSquare(vec):
+    return vec.X * vec.X + vec.Y * vec.Y
 
 ###
 
@@ -56,6 +72,9 @@ class Eve:
         
     def accelerate(s, dt, acceleration):
         s.Vel += acceleration * dt
+
+    def steer(s, dt, acceleration):
+        return
 
     def selfPaint(s, canvas):
         sdl2.ext.line(canvas, sdl2.ext.Color(0,0,255), (s.Pos.X, s.Pos.Y, s.Pos.X + s.Vel.X, s.Pos.Y + s.Vel.Y))
@@ -81,14 +100,16 @@ class PhysicScene:
             eve.Pos.Y += s.Height
 
 ###
-
+# 1315001703 Promesa de bonificación 
 class EvesEngine:
     Eves = None
+    InteractionRadius = None
 
-    def __init__(s, num_of_eves, ini_pos_range, ini_vel_range):
+    def __init__(s, num_of_eves, ini_pos_range, ini_vel_range, inter_radius):
         s.Eves = [Eve( pos = Vec2(random.uniform(*ini_pos_range[0]), random.uniform(*ini_pos_range[1])), 
                      vel = Vec2(random.uniform(*ini_vel_range[0]), random.uniform(*ini_vel_range[1]))
                      ) for i in range(num_of_eves)]
+        s.InteractionRadius = inter_radius
 
     def paint(s, canvas):
         for eve in s.Eves:
@@ -98,9 +119,28 @@ class EvesEngine:
         for eve in s.Eves:
             eve.move(dt)
             physic_scene.solve_collision(eve)
+
+    def _searchInteractions(s, eve):
+        res = list()
+        for e in s.Eves:
+            distance2 = normSquare(e.Pos - eve.Pos)
+            if distance2 < s.InteractionRadius*s.InteractionRadius and e != eve:
+                res.append((e, distance2))
+        return [i[0] for i in sorted(res, key = lambda x: x[1])]
             
-    def processEvesInteraction(s, dt):
-        # TODO something
+    def processEvesInteraction(s, dt, *args, **kwargs):
+        new_eves = list()
+        for eve in s.Eves:
+            inters = s._searchInteractions(eve) # Requires the original eve
+            accel = Vec2(0,0)
+            for fun in args:
+                accel += fun(eve, inters, **kwargs)
+            if len(args) > 0:
+                accel = accel / len(args)
+            new_eve = copy.deepcopy(eve)
+            new_eve.accelerate(dt, accel)
+            new_eves.append(new_eve)
+        s.Eves = new_eves
         return
 
 ###
@@ -127,12 +167,23 @@ class DrawEngine:
     def refresh(s):
         s.Window.refresh()
 
+##### Interaction Functions
+
+def separation(eve, inters, separation_maxacc):
+    acc = Vec2(0,0)
+    # Calculate 
+    for e in inters:
+        aux = eve.Pos - e.Pos
+        aux.truncate(separation_maxacc)
+        acc += aux
+    return acc
+
 ########### MAIN
 
 def main(win_x, win_y, eves_num):
     # Init setup
     win = DrawEngine("Eves", (win_x, win_y))
-    MyEves = EvesEngine(eves_num, ((0, win_x - 1), (0, win_y -1)), ((-100, 100), (-100, 100)))
+    MyEves = EvesEngine(eves_num, ((0, win_x - 1), (0, win_y -1)), ((-50, 50), (-50, 50)), 100)
     physic_scene = PhysicScene(win_x - 1, win_y - 1)
     current_time = time.time()
     # Paint first screen
@@ -150,7 +201,7 @@ def main(win_x, win_y, eves_num):
         # Update state
         new_time = time.time()
         MyEves.moveEves(new_time - current_time, physic_scene)
-        MyEves.processEvesInteraction(new_time - current_time) # Acceleration is done here
+        MyEves.processEvesInteraction(new_time - current_time, separation, separation_maxacc=Vec2(100,100)) # Acceleration is done here
         current_time = new_time
         # Paint
         win.clear(sdl2.ext.Color(0,0,0))
