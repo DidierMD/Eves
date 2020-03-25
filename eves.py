@@ -69,12 +69,9 @@ class Eve:
 
     def move(s, dt):
         s.Pos += s.Vel * dt
-        
+
     def accelerate(s, dt, acceleration):
         s.Vel += acceleration * dt
-
-    def steer(s, dt, acceleration):
-        return
 
     def selfPaint(s, canvas):
         sdl2.ext.line(canvas, sdl2.ext.Color(0,0,255), (s.Pos.X, s.Pos.Y, s.Pos.X + s.Vel.X, s.Pos.Y + s.Vel.Y))
@@ -128,20 +125,26 @@ class EvesEngine:
                 res.append((e, distance2))
         return [i[0] for i in sorted(res, key = lambda x: x[1])]
             
-    def processEvesInteraction(s, dt, *args, **kwargs):
+    def processEvesInteraction(s, dt, funs):
         new_eves = list()
         for eve in s.Eves:
             inters = s._searchInteractions(eve) # Requires the original eve
             accel = Vec2(0,0)
-            for fun in args:
+            for fun, kwargs in funs:
                 accel += fun(eve, inters, **kwargs)
-            if len(args) > 0:
-                accel = accel / len(args)
+            if len(funs) > 0:
+                accel = accel / len(funs)
             new_eve = copy.deepcopy(eve)
             new_eve.accelerate(dt, accel)
             new_eves.append(new_eve)
         s.Eves = new_eves
         return
+
+    def getTotalKineticEnergy(s):
+        tot_v2 = 0
+        for eve in s.Eves:
+            tot_v2 += normSquare(eve.Vel)
+        return tot_v2 / 2
 
 ###
 
@@ -169,14 +172,36 @@ class DrawEngine:
 
 ##### Interaction Functions
 
-def separation(eve, inters, separation_maxacc):
+def separation_simple(eve, inters, maxacc):
     acc = Vec2(0,0)
     # Calculate 
     for e in inters:
         aux = eve.Pos - e.Pos
-        aux.truncate(separation_maxacc)
+        aux.truncate(maxacc)
         acc += aux
     return acc
+
+def separation_magnetic(eve, inters, mag_constant):
+    acc = Vec2(0,0)
+    for e in inters:
+        # Get 'radius'
+        r = eve.Pos - e.Pos
+        r_mag2 = normSquare(r)
+        new_cte = mag_constant / r_mag2
+        acc += r / new_cte
+    return acc
+
+def separation_magnetic_steer(eve, inters, mag_constant):
+    acc = Vec2(0,0)
+    for e in inters:
+        # Get 'radius'
+        r = eve.Pos - e.Pos
+        r_mag2 = normSquare(r)
+        new_cte = mag_constant / r_mag2
+        acc += r / new_cte
+    return acc
+
+##### Other functions
 
 ########### MAIN
 
@@ -200,8 +225,11 @@ def main(win_x, win_y, eves_num):
                 break
         # Update state
         new_time = time.time()
+        if int(new_time) % 5 == 0:
+            print(MyEves.getTotalKineticEnergy())
         MyEves.moveEves(new_time - current_time, physic_scene)
-        MyEves.processEvesInteraction(new_time - current_time, separation, separation_maxacc=Vec2(100,100)) # Acceleration is done here
+        #MyEves.processEvesInteraction(new_time - current_time, [(separation_simple, {'maxacc':Vec2(100,100)})]) # Acceleration is done here
+        MyEves.processEvesInteraction(new_time - current_time, [(separation_magnetic, {'mag_constant':10000})]) # Acceleration is done here
         current_time = new_time
         # Paint
         win.clear(sdl2.ext.Color(0,0,0))
