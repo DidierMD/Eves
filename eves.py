@@ -48,6 +48,9 @@ class Vec2:
             else:
                 s.Y = der.Y
 
+    def clockwise_perpendicular(s):
+        return Vec2(s.Y, -s.X)
+
 def mean(vec_lst):
     sum_vec = Vec2(0,0)
     for v in vec_lst:
@@ -56,6 +59,9 @@ def mean(vec_lst):
 
 def normSquare(vec):
     return vec.X * vec.X + vec.Y * vec.Y
+
+def dot(izq, der):
+    return izq.X*der.X + izq.Y*der.Y
 
 ###
 
@@ -199,7 +205,9 @@ def separation_magnetic_steer(eve, inters, mag_constant):
         r_mag2 = normSquare(r)
         new_cte = mag_constant / r_mag2
         acc += r / new_cte
-    return acc
+    v_perp = eve.Vel.clockwise_perpendicular()
+    acc_influence = dot(v_perp, acc)
+    return v_perp * acc_influence
 
 ##### Other functions
 
@@ -208,7 +216,7 @@ def separation_magnetic_steer(eve, inters, mag_constant):
 def main(win_x, win_y, eves_num):
     # Init setup
     win = DrawEngine("Eves", (win_x, win_y))
-    MyEves = EvesEngine(eves_num, ((0, win_x - 1), (0, win_y -1)), ((-50, 50), (-50, 50)), 100)
+    MyEves = EvesEngine(eves_num, ((0, win_x - 1), (0, win_y -1)), ((-50, 50), (-50, 50)), 50)
     physic_scene = PhysicScene(win_x - 1, win_y - 1)
     current_time = time.time()
     # Paint first screen
@@ -228,8 +236,9 @@ def main(win_x, win_y, eves_num):
         if int(new_time) % 5 == 0:
             print(MyEves.getTotalKineticEnergy())
         MyEves.moveEves(new_time - current_time, physic_scene)
-        #MyEves.processEvesInteraction(new_time - current_time, [(separation_simple, {'maxacc':Vec2(100,100)})]) # Acceleration is done here
-        MyEves.processEvesInteraction(new_time - current_time, [(separation_magnetic, {'mag_constant':10000})]) # Acceleration is done here
+        #MyEves.processEvesInteraction(new_time - current_time, [(separation_simple, {'maxacc':Vec2(100,100)})])
+        #MyEves.processEvesInteraction(new_time - current_time, [(separation_magnetic, {'mag_constant':10000})]) 
+        MyEves.processEvesInteraction(new_time-current_time, [(separation_magnetic_steer,{'mag_constant':1000000})]) 
         current_time = new_time
         # Paint
         win.clear(sdl2.ext.Color(0,0,0))
