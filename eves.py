@@ -123,12 +123,14 @@ class EvesEngine:
             eve.move(dt)
             physic_scene.solve_collision(eve)
 
-    def _searchInteractions(s, eve):
+    def _searchInteractions(s, eve, physic_scene):
         res = list()
         for e in s.Eves:
             distance2 = normSquare(e.Pos - eve.Pos)
-            if distance2 < s.InteractionRadius*s.InteractionRadius and e != eve:
+            if distance2 < s.InteractionRadius * s.InteractionRadius and e != eve:
                 res.append((e, distance2))
+            else: # Check with physic_scene
+                
         return [i[0] for i in sorted(res, key = lambda x: x[1])]
             
     def processEvesInteraction(s, dt, funs):
@@ -216,7 +218,7 @@ def separation_magnetic_steer(eve, inters, mag_constant):
 def main(win_x, win_y, eves_num):
     # Init setup
     win = DrawEngine("Eves", (win_x, win_y))
-    MyEves = EvesEngine(eves_num, ((0, win_x - 1), (0, win_y -1)), ((-50, 50), (-50, 50)), 50)
+    MyEves = EvesEngine(eves_num, ((0, win_x - 1), (0, win_y -1)), ((-50, 50), (-50, 50)), 40)
     physic_scene = PhysicScene(win_x - 1, win_y - 1)
     current_time = time.time()
     # Paint first screen
